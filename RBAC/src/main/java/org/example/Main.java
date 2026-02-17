@@ -1,52 +1,15 @@
 package org.example;
 
 public class Main {
-    public static void main(String[] args) {
+    public static void main() {
+        Permission p1 = new Permission("READ", "users", "Can read user data");
+        System.out.println("Valid: " + p1.format());
 
-        System.out.println("Test 1: Valid user");
-        try {
-            User user = User.create("john_doe", "John Doe", "john@mail.com");
-            System.out.println("OK: " + user);
-            System.out.println("Format: " + user.format());
-        } catch (IllegalArgumentException e) {
-            System.out.println("Error: " + e.getMessage());
-        }
-        System.out.println();
+        Permission p2 = new Permission("delete", "USERS", "Can delete");
+        System.out.println("Normalized: " + p2.name() + " on " + p2.resource());
 
-        System.out.println("Test 2: Empty username");
-        try {
-            User user = User.create("", "John Doe", "john@mail.com");
-            System.out.println("OK: " + user);
-        } catch (IllegalArgumentException e) {
-            System.out.println("Error: " + e.getMessage());
-        }
-        System.out.println();
+        System.out.println("Matches READ on users? " + p1.matches("READ", "users"));
+        System.out.println("Matches WRITE on users? " + p1.matches("WRITE", "users"));
 
-        System.out.println("Test 3: Username with @");
-        try {
-            User user = User.create("john@doe", "John Doe", "john@mail.com");
-            System.out.println("OK: " + user);
-        } catch (IllegalArgumentException e) {
-            System.out.println("Error: " + e.getMessage());
-        }
-        System.out.println();
-
-        System.out.println("Test 4: Email without @");
-        try {
-            User user = User.create("jane_doe", "Jane Doe", "janemail.com");
-            System.out.println("OK: " + user);
-        } catch (IllegalArgumentException e) {
-            System.out.println("Error: " + e.getMessage());
-        }
-        System.out.println();
-
-        System.out.println("Test 5: Email without dot after @");
-        try {
-            User user = User.create("bob_smith", "Bob Smith", "bob@mailcom");
-            System.out.println("OK: " + user);
-        } catch (IllegalArgumentException e) {
-            System.out.println("Error: " + e.getMessage());
-        }
-        System.out.println();
     }
 }
