@@ -1,15 +1,24 @@
 package org.example;
 
 public class Main {
-    public static void main() {
-        Permission p1 = new Permission("READ", "users", "Can read user data");
-        System.out.println("Valid: " + p1.format());
+    public static void main(String[] args) {
+        Permission readUsers = new Permission("READ", "users", "Can view user list");
+        Permission writeUsers = new Permission("WRITE", "users", "Can create and edit users");
+        Permission deleteUsers = new Permission("DELETE", "users", "Can delete users");
 
-        Permission p2 = new Permission("delete", "USERS", "Can delete");
-        System.out.println("Normalized: " + p2.name() + " on " + p2.resource());
+        Role admin = new Role("Administrator", "Full system access");
 
-        System.out.println("Matches READ on users? " + p1.matches("READ", "users"));
-        System.out.println("Matches WRITE on users? " + p1.matches("WRITE", "users"));
+        admin.addPermission(readUsers);
+        admin.addPermission(writeUsers);
+        admin.addPermission(deleteUsers);
 
+        System.out.println(admin.format());
+
+        System.out.println("Has READ on users? " + admin.hasPermission("READ", "users"));
+        System.out.println("Has DELETE on reports? " + admin.hasPermission("DELETE", "reports"));
+
+        admin.removePermission(deleteUsers);
+        System.out.println("\nAfter removing DELETE permission:");
+        System.out.println(admin.format());
     }
 }
