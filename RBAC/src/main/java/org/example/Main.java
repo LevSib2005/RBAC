@@ -1,17 +1,52 @@
 package org.example;
 
-//TIP Чтобы <b>запустить</b> код, нажмите <shortcut actionId="Run"/> или
-// нажмите на значок <icon src="AllIcons.Actions.Execute"/> в поле.
 public class Main {
-    static void main() {
-        //TIP Нажмите <shortcut actionId="ShowIntentionActions"/>, когда курсор находится на выделенном тексте
-        // чтобы увидеть, как OpenIDE предлагает это исправить.
-        IO.println(String.format("Hello and welcome!"));
+    public static void main(String[] args) {
 
-        for (int i = 1; i <= 5; i++) {
-            //TIP Нажмите <shortcut actionId="Debug"/>, чтобы начать отладку вашего кода. Мы установили одну <icon src="AllIcons.Debugger.Db_set_breakpoint"/> точку останова
-            // для вас, но вы всегда можете добавить больше, нажав <shortcut actionId="ToggleLineBreakpoint"/>.
-            IO.println("i = " + i);
+        System.out.println("Test 1: Valid user");
+        try {
+            User user = User.create("john_doe", "John Doe", "john@mail.com");
+            System.out.println("OK: " + user);
+            System.out.println("Format: " + user.format());
+        } catch (IllegalArgumentException e) {
+            System.out.println("Error: " + e.getMessage());
         }
+        System.out.println();
+
+        System.out.println("Test 2: Empty username");
+        try {
+            User user = User.create("", "John Doe", "john@mail.com");
+            System.out.println("OK: " + user);
+        } catch (IllegalArgumentException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+        System.out.println();
+
+        System.out.println("Test 3: Username with @");
+        try {
+            User user = User.create("john@doe", "John Doe", "john@mail.com");
+            System.out.println("OK: " + user);
+        } catch (IllegalArgumentException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+        System.out.println();
+
+        System.out.println("Test 4: Email without @");
+        try {
+            User user = User.create("jane_doe", "Jane Doe", "janemail.com");
+            System.out.println("OK: " + user);
+        } catch (IllegalArgumentException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+        System.out.println();
+
+        System.out.println("Test 5: Email without dot after @");
+        try {
+            User user = User.create("bob_smith", "Bob Smith", "bob@mailcom");
+            System.out.println("OK: " + user);
+        } catch (IllegalArgumentException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+        System.out.println();
     }
 }
