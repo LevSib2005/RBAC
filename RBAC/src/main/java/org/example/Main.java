@@ -2,23 +2,13 @@ package org.example;
 
 public class Main {
     public static void main(String[] args) {
-        Permission readUsers = new Permission("READ", "users", "Can view user list");
-        Permission writeUsers = new Permission("WRITE", "users", "Can create and edit users");
-        Permission deleteUsers = new Permission("DELETE", "users", "Can delete users");
+        AssignmentMetadata meta1 = AssignmentMetadata.now("admin", "New project");
+        System.out.println(meta1.format());
 
-        Role admin = new Role("Administrator", "Full system access");
+        AssignmentMetadata meta2 = AssignmentMetadata.now("john_doe");
+        System.out.println(meta2.format());
 
-        admin.addPermission(readUsers);
-        admin.addPermission(writeUsers);
-        admin.addPermission(deleteUsers);
-
-        System.out.println(admin.format());
-
-        System.out.println("Has READ on users? " + admin.hasPermission("READ", "users"));
-        System.out.println("Has DELETE on reports? " + admin.hasPermission("DELETE", "reports"));
-
-        admin.removePermission(deleteUsers);
-        System.out.println("\nAfter removing DELETE permission:");
-        System.out.println(admin.format());
+        AssignmentMetadata meta3 = new AssignmentMetadata("manager", "2025-03-15 10:30:00", "Temporary access");
+        System.out.println(meta3.format());
     }
 }
