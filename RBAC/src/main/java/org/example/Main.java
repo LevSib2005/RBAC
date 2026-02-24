@@ -7,83 +7,143 @@ import org.example.entity.AssignmentMetadata;
 import org.example.entity.Permission;
 import org.example.entity.Role;
 import org.example.entity.User;
-import org.example.filter.AssignmentFilter;
-import org.example.filter.AssignmentFilters;
+import org.example.sorter.UserSorters;
+import org.example.sorter.RoleSorters;
+import org.example.sorter.AssignmentSorters;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Collections;
 
 public class Main {
     public static void main(String[] args) {
+        testUserSorters();
+        testRoleSorters();
+        testAssignmentSorters();
+    }
+
+    private static void testUserSorters() {
+        System.out.println("USER SORTING TESTS");
+
+        List<User> users = new ArrayList<>();
+        users.add(User.create("john_doe", "John Doe", "john@mail.com"));
+        users.add(User.create("alice_w", "Alice Wonder", "alice@mail.com"));
+        users.add(User.create("bob_smith", "Bob Smith", "bob@mail.com"));
+        users.add(User.create("charlie", "Charlie Brown", "charlie@mail.com"));
+
+        System.out.println("\nOriginal order:");
+        users.forEach(u -> System.out.println("  " + u.format()));
+
+        Collections.sort(users, UserSorters.byUsername());
+        System.out.println("\nSorted by username:");
+        users.forEach(u -> System.out.println("  " + u.format()));
+
+        Collections.sort(users, UserSorters.byFullName());
+        System.out.println("\nSorted by full name:");
+        users.forEach(u -> System.out.println("  " + u.format()));
+
+        Collections.sort(users, UserSorters.byEmail());
+        System.out.println("\nSorted by email:");
+        users.forEach(u -> System.out.println("  " + u.format()));
+
+        System.out.println();
+    }
+
+    private static void testRoleSorters() {
+        System.out.println("ROLE SORTING TESTS");
+
+        Permission p1 = new Permission("READ", "users", "read");
+        Permission p2 = new Permission("WRITE", "users", "write");
+        Permission p3 = new Permission("DELETE", "users", "delete");
+
+        Role admin = new Role("Administrator", "Admin role");
+        admin.addPermission(p1);
+        admin.addPermission(p2);
+        admin.addPermission(p3);
+
+        Role viewer = new Role("Viewer", "View only");
+        viewer.addPermission(p1);
+
+        Role editor = new Role("Editor", "Edit content");
+        editor.addPermission(p1);
+        editor.addPermission(p2);
+
+        List<Role> roles = new ArrayList<>();
+        roles.add(admin);
+        roles.add(viewer);
+        roles.add(editor);
+
+        System.out.println("\nOriginal order:");
+        roles.forEach(r -> System.out.println("  " + r.getName() + " (" + r.getPermissions().size() + " perms)"));
+
+        Collections.sort(roles, RoleSorters.byName());
+        System.out.println("\nSorted by name:");
+        roles.forEach(r -> System.out.println("  " + r.getName() + " (" + r.getPermissions().size() + " perms)"));
+
+        Collections.sort(roles, RoleSorters.byPermissionCount());
+        System.out.println("\nSorted by permission count:");
+        roles.forEach(r -> System.out.println("  " + r.getName() + " (" + r.getPermissions().size() + " perms)"));
+
+        System.out.println();
+    }
+
+    private static void testAssignmentSorters() {
+        System.out.println("ASSIGNMENT SORTING TESTS");
+
         User user1 = User.create("john_doe", "John Doe", "john@mail.com");
-        User user2 = User.create("jane_smith", "Jane Smith", "jane@mail.com");
-        User admin = User.create("admin", "Admin User", "admin@system.com");
+        User user2 = User.create("alice_w", "Alice Wonder", "alice@mail.com");
+        User user3 = User.create("bob_smith", "Bob Smith", "bob@mail.com");
 
-        Permission readUsers = new Permission("READ", "users", "Can read users");
-        Permission writeUsers = new Permission("WRITE", "users", "Can write users");
+        Permission p1 = new Permission("READ", "users", "read");
+        Permission p2 = new Permission("WRITE", "users", "write");
 
-        Role viewer = new Role("Viewer", "Can view only");
-        viewer.addPermission(readUsers);
+        Role viewer = new Role("Viewer", "View only");
+        viewer.addPermission(p1);
 
-        Role editor = new Role("Editor", "Can edit");
-        editor.addPermission(readUsers);
-        editor.addPermission(writeUsers);
+        Role editor = new Role("Editor", "Edit content");
+        editor.addPermission(p1);
+        editor.addPermission(p2);
 
-        AssignmentMetadata meta1 = AssignmentMetadata.now("admin", "Initial setup");
-        AssignmentMetadata meta2 = AssignmentMetadata.now("admin", "Project access");
-        AssignmentMetadata meta3 = AssignmentMetadata.now("manager", "Temporary access");
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+        AssignmentMetadata meta1 = new AssignmentMetadata("admin",
+                LocalDateTime.now().minusDays(5).format(formatter), "First");
+        AssignmentMetadata meta2 = new AssignmentMetadata("admin",
+                LocalDateTime.now().minusDays(1).format(formatter), "Second");
+        AssignmentMetadata meta3 = new AssignmentMetadata("manager",
+                LocalDateTime.now().format(formatter), "Third");
 
         PermanentAssignment perm1 = new PermanentAssignment(user1, viewer, meta1);
         PermanentAssignment perm2 = new PermanentAssignment(user2, editor, meta2);
 
-        LocalDateTime expiresSoon = LocalDateTime.now().plusDays(2);
-        String expiresAt = expiresSoon.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
-        TemporaryAssignment temp1 = new TemporaryAssignment(user1, editor, meta3, expiresAt, false);
+        String expiresAt = LocalDateTime.now().plusDays(10).format(formatter);
+        TemporaryAssignment temp1 = new TemporaryAssignment(user3, editor, meta3, expiresAt, true);
 
-        perm2.revoke();
+        List<RoleAssignment> assignments = new ArrayList<>();
+        assignments.add(perm1);
+        assignments.add(perm2);
+        assignments.add(temp1);
 
-        List<RoleAssignment> assignments = List.of(perm1, perm2, temp1);
+        System.out.println("\nOriginal order:");
+        assignments.forEach(a -> System.out.println("  " + a.user().username() + " -> " +
+                a.role().getName() + " at " + a.metadata().assignedAt()));
 
-        System.out.println("ASSIGNMENT FILTER TESTS\n");
+        Collections.sort(assignments, AssignmentSorters.byUsername());
+        System.out.println("\nSorted by username:");
+        assignments.forEach(a -> System.out.println("  " + a.user().username() + " -> " +
+                a.role().getName() + " at " + a.metadata().assignedAt()));
 
-        System.out.println("Test 1: byUser (john_doe)");
-        filterAndPrint(assignments, AssignmentFilters.byUser(user1));
+        Collections.sort(assignments, AssignmentSorters.byRoleName());
+        System.out.println("\nSorted by role name:");
+        assignments.forEach(a -> System.out.println("  " + a.user().username() + " -> " +
+                a.role().getName() + " at " + a.metadata().assignedAt()));
 
-        System.out.println("Test 2: byRoleName 'Editor'");
-        filterAndPrint(assignments, AssignmentFilters.byRoleName("Editor"));
+        Collections.sort(assignments, AssignmentSorters.byAssignmentDate());
+        System.out.println("\nSorted by assignment date:");
+        assignments.forEach(a -> System.out.println("  " + a.user().username() + " -> " +
+                a.role().getName() + " at " + a.metadata().assignedAt()));
 
-        System.out.println("Test 3: activeOnly");
-        filterAndPrint(assignments, AssignmentFilters.activeOnly());
-
-        System.out.println("Test 4: byType 'TEMPORARY'");
-        filterAndPrint(assignments, AssignmentFilters.byType("TEMPORARY"));
-
-        System.out.println("Test 5: assignedBy 'admin'");
-        filterAndPrint(assignments, AssignmentFilters.assignedBy("admin"));
-
-        System.out.println("Test 6: byUser AND activeOnly");
-        AssignmentFilter filterAnd = AssignmentFilters.byUser(user1)
-                .and(AssignmentFilters.activeOnly());
-        filterAndPrint(assignments, filterAnd);
-
-        System.out.println("Test 7: byType 'PERMANENT' OR inactiveOnly");
-        AssignmentFilter filterOr = AssignmentFilters.byType("PERMANENT")
-                .or(AssignmentFilters.inactiveOnly());
-        filterAndPrint(assignments, filterOr);
-    }
-
-    private static void filterAndPrint(List<RoleAssignment> assignments, AssignmentFilter filter) {
-        assignments.stream()
-                .filter(filter::test)
-                .forEach(a -> {
-                    String type = a.assignmentType();
-                    String status = a.isActive() ? "ACTIVE" : "INACTIVE";
-                    System.out.println("  [" + type + "] " + a.user().username() +
-                            " -> " + a.role().getName() +
-                            " (" + status + ")");
-                });
-
-        long count = assignments.stream().filter(filter::test).count();
-        System.out.println("  Found: " + count + " assignments\n");
+        System.out.println();
     }
 }
