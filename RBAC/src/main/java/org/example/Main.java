@@ -1,75 +1,89 @@
 package org.example;
 
+import org.example.assignment.PermanentAssignment;
+import org.example.assignment.RoleAssignment;
+import org.example.assignment.TemporaryAssignment;
+import org.example.entity.AssignmentMetadata;
 import org.example.entity.Permission;
 import org.example.entity.Role;
-import org.example.filter.RoleFilter;
-import org.example.filter.RoleFilters;
+import org.example.entity.User;
+import org.example.filter.AssignmentFilter;
+import org.example.filter.AssignmentFilters;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
+        User user1 = User.create("john_doe", "John Doe", "john@mail.com");
+        User user2 = User.create("jane_smith", "Jane Smith", "jane@mail.com");
+        User admin = User.create("admin", "Admin User", "admin@system.com");
+
         Permission readUsers = new Permission("READ", "users", "Can read users");
         Permission writeUsers = new Permission("WRITE", "users", "Can write users");
-        Permission deleteUsers = new Permission("DELETE", "users", "Can delete users");
-        Permission readReports = new Permission("READ", "reports", "Can read reports");
-        Permission writeReports = new Permission("WRITE", "reports", "Can write reports");
-
-        Role admin = new Role("Administrator", "Full access");
-        admin.addPermission(readUsers);
-        admin.addPermission(writeUsers);
-        admin.addPermission(deleteUsers);
-        admin.addPermission(readReports);
-        admin.addPermission(writeReports);
-
-        Role editor = new Role("Editor", "Can edit content");
-        editor.addPermission(readUsers);
-        editor.addPermission(writeUsers);
-        editor.addPermission(readReports);
 
         Role viewer = new Role("Viewer", "Can view only");
         viewer.addPermission(readUsers);
-        viewer.addPermission(readReports);
 
-        Role guest = new Role("Guest", "Limited access");
-        guest.addPermission(readUsers);
+        Role editor = new Role("Editor", "Can edit");
+        editor.addPermission(readUsers);
+        editor.addPermission(writeUsers);
 
-        List<Role> roles = List.of(admin, editor, viewer, guest);
+        AssignmentMetadata meta1 = AssignmentMetadata.now("admin", "Initial setup");
+        AssignmentMetadata meta2 = AssignmentMetadata.now("admin", "Project access");
+        AssignmentMetadata meta3 = AssignmentMetadata.now("manager", "Temporary access");
 
-        System.out.println("Test 1: byName 'Administrator'");
-        filterAndPrint(roles, RoleFilters.byName("Administrator"));
+        PermanentAssignment perm1 = new PermanentAssignment(user1, viewer, meta1);
+        PermanentAssignment perm2 = new PermanentAssignment(user2, editor, meta2);
 
-        System.out.println("Test 2: byNameContains 'edit'");
-        filterAndPrint(roles, RoleFilters.byNameContains("edit"));
+        LocalDateTime expiresSoon = LocalDateTime.now().plusDays(2);
+        String expiresAt = expiresSoon.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+        TemporaryAssignment temp1 = new TemporaryAssignment(user1, editor, meta3, expiresAt, false);
 
-        System.out.println("Test 3: hasPermission DELETE on users");
-        filterAndPrint(roles, RoleFilters.hasPermission("DELETE", "users"));
+        perm2.revoke();
 
-        System.out.println("Test 4: hasAtLeastNPermissions(3)");
-        filterAndPrint(roles, RoleFilters.hasAtLeastNPermissions(3));
+        List<RoleAssignment> assignments = List.of(perm1, perm2, temp1);
 
-        System.out.println("Test 5: hasPermission READ on reports AND at least 2 permissions");
-        RoleFilter filterAnd = RoleFilters.hasPermission("READ", "reports")
-                .and(RoleFilters.hasAtLeastNPermissions(2));
-        filterAndPrint(roles, filterAnd);
+        System.out.println("ASSIGNMENT FILTER TESTS\n");
 
-        System.out.println("Test 6: name contains 'view' OR has DELETE permission");
-        RoleFilter filterOr = RoleFilters.byNameContains("view")
-                .or(RoleFilters.hasPermission("DELETE", "users"));
-        filterAndPrint(roles, filterOr);
+        System.out.println("Test 1: byUser (john_doe)");
+        filterAndPrint(assignments, AssignmentFilters.byUser(user1));
 
-        System.out.println("Test 7: (name contains 'Admin' OR has WRITE on reports) AND at least 3 permissions");
-        RoleFilter complex = RoleFilters.byNameContains("Admin")
-                .or(RoleFilters.hasPermission("WRITE", "reports"))
-                .and(RoleFilters.hasAtLeastNPermissions(3));
-        filterAndPrint(roles, complex);
+        System.out.println("Test 2: byRoleName 'Editor'");
+        filterAndPrint(assignments, AssignmentFilters.byRoleName("Editor"));
+
+        System.out.println("Test 3: activeOnly");
+        filterAndPrint(assignments, AssignmentFilters.activeOnly());
+
+        System.out.println("Test 4: byType 'TEMPORARY'");
+        filterAndPrint(assignments, AssignmentFilters.byType("TEMPORARY"));
+
+        System.out.println("Test 5: assignedBy 'admin'");
+        filterAndPrint(assignments, AssignmentFilters.assignedBy("admin"));
+
+        System.out.println("Test 6: byUser AND activeOnly");
+        AssignmentFilter filterAnd = AssignmentFilters.byUser(user1)
+                .and(AssignmentFilters.activeOnly());
+        filterAndPrint(assignments, filterAnd);
+
+        System.out.println("Test 7: byType 'PERMANENT' OR inactiveOnly");
+        AssignmentFilter filterOr = AssignmentFilters.byType("PERMANENT")
+                .or(AssignmentFilters.inactiveOnly());
+        filterAndPrint(assignments, filterOr);
     }
 
-    private static void filterAndPrint(List<Role> roles, RoleFilter filter) {
-        roles.stream()
+    private static void filterAndPrint(List<RoleAssignment> assignments, AssignmentFilter filter) {
+        assignments.stream()
                 .filter(filter::test)
-                .forEach(role -> System.out.println("  " + role.getName() + " (" + role.getPermissions().size() + " permissions)"));
+                .forEach(a -> {
+                    String type = a.assignmentType();
+                    String status = a.isActive() ? "ACTIVE" : "INACTIVE";
+                    System.out.println("  [" + type + "] " + a.user().username() +
+                            " -> " + a.role().getName() +
+                            " (" + status + ")");
+                });
 
-        long count = roles.stream().filter(filter::test).count();
-        System.out.println("  Found: " + count + " roles\n");
+        long count = assignments.stream().filter(filter::test).count();
+        System.out.println("  Found: " + count + " assignments\n");
     }
 }
