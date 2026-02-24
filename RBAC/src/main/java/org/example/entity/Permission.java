@@ -1,4 +1,4 @@
-package org.example;
+package org.example.entity;
 
 public record Permission(String name, String resource, String description) {
     public Permission {

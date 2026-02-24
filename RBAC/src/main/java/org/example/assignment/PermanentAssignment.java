@@ -1,4 +1,4 @@
-package org.example;
+package org.example.assignment;
 
 public class PermanentAssignment extends AbstractRoleAssignment {
 

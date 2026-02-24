@@ -1,4 +1,4 @@
-package org.example;
+package org.example.entity;
 
 import java.util.regex.Pattern;
 
