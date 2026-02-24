@@ -1,31 +1,55 @@
 package org.example;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import org.example.entity.User;
+import org.example.filter.UserFilter;
+import org.example.filter.UserFilters;
+import java.util.List;
 
 public class Main {
-    public static void main() {
-        User user = User.create("john_doe", "John Doe", "john@mail.com");
-
-        Permission readUsers = new Permission("READ", "users", "Can view users");
-        Permission writeUsers = new Permission("WRITE", "users", "Can edit users");
-
-        Role editor = new Role("Editor", "Can edit content");
-        editor.addPermission(readUsers);
-        editor.addPermission(writeUsers);
-
-        AssignmentMetadata metadata = AssignmentMetadata.now("admin", "Temporary access for project");
-
-        LocalDateTime expiresIn7Days = LocalDateTime.now().plusDays(7);
-        String expiresAt = expiresIn7Days.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
-
-        TemporaryAssignment tempAssignment = new TemporaryAssignment(
-                user, editor, metadata, expiresAt, true
+    public static void main(String[] args) {
+        List<User> users = List.of(
+                User.create("john_doe", "John Doe", "john@company.com"),
+                User.create("jane_smith", "Jane Smith", "jane@gmail.com"),
+                User.create("bob_johnson", "Bob Johnson", "bob@company.com"),
+                User.create("alice_wonder", "Alice Wonder", "alice@company.com"),
+                User.create("charlie_brown", "Charlie Brown", "charlie@gmail.com")
         );
 
-        System.out.println(tempAssignment.summary());
+        System.out.println("--- Test 1: byUsername 'john_doe' ---");
+        filterAndPrint(users, UserFilters.byUsername("john_doe"));
 
-        System.out.println("Is active? " + tempAssignment.isActive());
-        System.out.println("Is expired? " + tempAssignment.isExpired());
+        System.out.println("--- Test 2: byUsernameContains 'john' ---");
+        filterAndPrint(users, UserFilters.byUsernameContains("john"));
+
+        System.out.println("--- Test 3: byEmailDomain '@company.com' ---");
+        filterAndPrint(users, UserFilters.byEmailDomain("@company.com"));
+
+        System.out.println("--- Test 4: byFullNameContains 'Smith' ---");
+        filterAndPrint(users, UserFilters.byFullNameContains("Smith"));
+
+        System.out.println("--- Test 5: AND combination ---");
+        UserFilter filterAnd = UserFilters.byUsernameContains("john")
+                .and(UserFilters.byEmailDomain("@company.com"));
+        filterAndPrint(users, filterAnd);
+
+        System.out.println("--- Test 6: OR combination ---");
+        UserFilter filterOr = UserFilters.byUsernameContains("john")
+                .or(UserFilters.byEmailDomain("@gmail.com"));
+        filterAndPrint(users, filterOr);
+
+        System.out.println("--- Test 7: Complex combination ---");
+        UserFilter complex = UserFilters.byFullNameContains("John")
+                .or(UserFilters.byFullNameContains("Charlie"))
+                .and(UserFilters.byEmailDomain("@company.com"));
+        filterAndPrint(users, complex);
+    }
+
+    private static void filterAndPrint(List<User> users, UserFilter filter) {
+        users.stream()
+                .filter(filter::test)
+                .forEach(user -> System.out.println("  " + user.format()));
+
+        long count = users.stream().filter(filter::test).count();
+        System.out.println("  Found: " + count + " users\n");
     }
 }
