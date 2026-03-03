@@ -80,6 +80,7 @@ public class RBACSystem {
 
         User admin = User.create("admin", "System Administrator", "admin@system.com");
         userManager.add(admin);
+        setCurrentUser("admin");
 
         AssignmentMetadata metadata = AssignmentMetadata.now("system", "Initial system setup");
         PermanentAssignment adminAssignment = new PermanentAssignment(admin, adminRole, metadata);
