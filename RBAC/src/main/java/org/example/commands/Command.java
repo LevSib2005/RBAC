@@ -1,6 +1,5 @@
 package org.example.commands;
 
-import org.example.commands.RBACSystem;
 import java.util.Scanner;
 
 @FunctionalInterface
