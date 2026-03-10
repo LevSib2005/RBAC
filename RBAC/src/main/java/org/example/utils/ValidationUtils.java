@@ -26,7 +26,7 @@ public class ValidationUtils {
     public static boolean isValidDate(String date) {
         if (date == null) return false;
         try {
-            LocalDateTime.parse(date, DATE_FORMATTER);
+            LocalDateTime.parse(date.replace(" ", "T"));
             return true;
         } catch (DateTimeParseException e) {
             return false;
