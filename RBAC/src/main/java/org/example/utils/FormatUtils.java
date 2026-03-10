@@ -90,15 +90,14 @@ public class FormatUtils {
         for (String line : lines) {
             box.append("| ").append(padRight(line, maxLength)).append(" |\n");
         }
-
         box.append("+").append("-".repeat(maxLength + 2)).append("+\n");
 
         return box.toString();
     }
 
     public static String formatHeader(String text) {
-        if (text == null || text.isEmpty()) {
-            return "";
+        if (text == null) {
+            text = "";
         }
         return "\n=== " + text + " ===\n";
     }
