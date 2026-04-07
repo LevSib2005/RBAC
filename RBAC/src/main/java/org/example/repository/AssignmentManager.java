@@ -49,14 +49,11 @@ public class AssignmentManager implements Repository<RoleAssignment> {
             }
 
             boolean alreadyAssigned = assignmentsById.values().stream()
-                    .anyMatch(a -> a.user().equals(user) &&
-                            a.role().equals(role) &&
-                            a.isActive());
+                    .anyMatch(a -> a.user().equals(user) && a.role().equals(role) && a.isActive());
 
             if (alreadyAssigned) {
                 throw new IllegalArgumentException("User '" + user.username() +
-                        "' already has active assignment for role '" +
-                        role.getName() + "'");
+                        "' already has active assignment for role '" + role.getName() + "'");
             }
 
             assignmentsById.put(id, assignment);
@@ -112,8 +109,25 @@ public class AssignmentManager implements Repository<RoleAssignment> {
                 .collect(Collectors.toList());
     }
 
+    public List<RoleAssignment> findByFilterParallel(AssignmentFilter filter) {
+        if (filter == null) {
+            return findAll();
+        }
+        return assignmentsById.values().parallelStream()
+                .filter(filter::test)
+                .collect(Collectors.toList());
+    }
+
     public List<RoleAssignment> findAll(AssignmentFilter filter, Comparator<RoleAssignment> sorter) {
         List<RoleAssignment> result = findByFilter(filter);
+        if (sorter != null) {
+            result.sort(sorter);
+        }
+        return result;
+    }
+
+    public List<RoleAssignment> findAllParallel(AssignmentFilter filter, Comparator<RoleAssignment> sorter) {
+        List<RoleAssignment> result = findByFilterParallel(filter);
         if (sorter != null) {
             result.sort(sorter);
         }
@@ -134,9 +148,7 @@ public class AssignmentManager implements Repository<RoleAssignment> {
 
     public boolean userHasRole(User user, Role role) {
         return assignmentsById.values().stream()
-                .anyMatch(a -> a.user().equals(user) &&
-                        a.role().equals(role) &&
-                        a.isActive());
+                .anyMatch(a -> a.user().equals(user) && a.role().equals(role) && a.isActive());
     }
 
     public boolean userHasPermission(User user, String permissionName, String resource) {

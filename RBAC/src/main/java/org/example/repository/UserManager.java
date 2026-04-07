@@ -57,7 +57,6 @@ public class UserManager implements Repository<User> {
     }
 
     public Optional<User> findByEmail(String email) {
-        // Итерация по ConcurrentHashMap.values() безопасна (слабая согласованность)
         return users.values().stream()
                 .filter(user -> user.email().equals(email))
                 .findFirst();
@@ -72,8 +71,25 @@ public class UserManager implements Repository<User> {
                 .collect(Collectors.toList());
     }
 
+    public List<User> findByFilterParallel(UserFilter filter) {
+        if (filter == null) {
+            return findAll();
+        }
+        return users.values().parallelStream()
+                .filter(filter::test)
+                .collect(Collectors.toList());
+    }
+
     public List<User> findAll(UserFilter filter, Comparator<User> sorter) {
         List<User> result = findByFilter(filter);
+        if (sorter != null) {
+            result.sort(sorter);
+        }
+        return result;
+    }
+
+    public List<User> findAllParallel(UserFilter filter, Comparator<User> sorter) {
+        List<User> result = findByFilterParallel(filter);
         if (sorter != null) {
             result.sort(sorter);
         }
