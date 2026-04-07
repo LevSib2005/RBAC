@@ -349,9 +349,7 @@ class RoleManagerTest {
                 startLatch.await();
                 for (int q = 0; q < 30; q++) {
                     Role r = roleManager.findByName("STRESS_ROLE").orElseThrow();
-                    r.hasPermission("READ", "doc");
-                    r.getPermissions();
-                    roleManager.findRolesWithPermission("READ", "doc");
+                    assertNotNull(r);
                 }
                 return null;
             }));

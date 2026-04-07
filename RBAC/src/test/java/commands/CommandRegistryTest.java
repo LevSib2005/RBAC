@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.util.List;
 import java.util.Scanner;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -231,10 +232,21 @@ class CommandRegistryTest {
 
     @Test
     void assignRolePermanent() {
-        String input = "john_doe\n1\n1\n\n";
+        List<Role> roles = system.getRoleManager().findAll();
+        int adminIndex = -1;
+        for (int i = 0; i < roles.size(); i++) {
+            if (roles.get(i).getName().equals("Admin")) {
+                adminIndex = i + 1;
+                break;
+            }
+        }
+        assertNotEquals(-1, adminIndex, "Role 'Admin' not found in role list");
+
+        String input = "john_doe\n" + adminIndex + "\n1\n\n";
         parser.executeCommand("assign-role", scannerOf(input), system);
         String out = getOutput();
         assertTrue(out.contains("Permanent assignment created."));
+
         var user = system.getUserManager().findByUsername("john_doe").get();
         var assignments = system.getAssignmentManager().findByUser(user);
         assertTrue(assignments.stream().anyMatch(a -> a.role().getName().equals("Admin") && a.isActive()));
@@ -242,7 +254,17 @@ class CommandRegistryTest {
 
     @Test
     void assignRoleTemporary() {
-        String input = "jane_smith\n2\n2\nTemporary access\n2025-12-31 23:59\ny\n";
+        List<Role> roles = system.getRoleManager().findAll();
+        int managerIndex = -1;
+        for (int i = 0; i < roles.size(); i++) {
+            if (roles.get(i).getName().equals("Manager")) {
+                managerIndex = i + 1;
+                break;
+            }
+        }
+        assertNotEquals(-1, managerIndex, "Role 'Manager' not found");
+
+        String input = "john_doe\n" + managerIndex + "\n2\nTemporary access\n2025-12-31 23:59\ny\n";
         parser.executeCommand("assign-role", scannerOf(input), system);
         String out = getOutput();
         assertTrue(out.contains("Temporary assignment created."));
@@ -254,7 +276,7 @@ class CommandRegistryTest {
         parser.executeCommand("assign-role", scannerOf(assignInput), system);
         outputStream.reset();
 
-        String revokeInput = "bob_wilson\n1\n"; // выбираем первое активное назначение
+        String revokeInput = "bob_wilson\n1\n";
         parser.executeCommand("revoke-role", scannerOf(revokeInput), system);
         String out = getOutput();
         assertTrue(out.contains("Assignment revoked."));
