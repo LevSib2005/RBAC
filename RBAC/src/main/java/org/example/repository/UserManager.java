@@ -1,28 +1,27 @@
 package org.example.repository;
 
-
 import org.example.entity.User;
 import org.example.filter.UserFilter;
+
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
 public class UserManager implements Repository<User> {
 
-    private Map<String, User> users = new HashMap<>();
+    private final ConcurrentMap<String, User> users = new ConcurrentHashMap<>();
 
     @Override
     public void add(User user) {
         if (user == null) {
             throw new IllegalArgumentException("User cannot be null");
         }
-
         String username = user.username();
-
-        if (users.containsKey(username)) {
+        User existing = users.putIfAbsent(username, user);
+        if (existing != null) {
             throw new IllegalArgumentException("User with username '" + username + "' already exists");
         }
-
-        users.put(username, user);
     }
 
     @Override
@@ -30,7 +29,7 @@ public class UserManager implements Repository<User> {
         if (user == null) {
             return false;
         }
-        return users.remove(user.username()) != null;
+        return users.remove(user.username(), user);
     }
 
     @Override
@@ -58,6 +57,7 @@ public class UserManager implements Repository<User> {
     }
 
     public Optional<User> findByEmail(String email) {
+        // Итерация по ConcurrentHashMap.values() безопасна (слабая согласованность)
         return users.values().stream()
                 .filter(user -> user.email().equals(email))
                 .findFirst();
@@ -67,7 +67,6 @@ public class UserManager implements Repository<User> {
         if (filter == null) {
             return findAll();
         }
-
         return users.values().stream()
                 .filter(filter::test)
                 .collect(Collectors.toList());
@@ -75,11 +74,9 @@ public class UserManager implements Repository<User> {
 
     public List<User> findAll(UserFilter filter, Comparator<User> sorter) {
         List<User> result = findByFilter(filter);
-
         if (sorter != null) {
             result.sort(sorter);
         }
-
         return result;
     }
 
@@ -88,14 +85,18 @@ public class UserManager implements Repository<User> {
     }
 
     public void update(String username, String newFullName, String newEmail) {
+        // Атомарное обновление: replace(key, oldValue, newValue) или compute
         User existing = users.get(username);
-
         if (existing == null) {
             throw new IllegalArgumentException("User with username '" + username + "' not found");
         }
-
         User updated = User.create(username, newFullName, newEmail);
-        users.put(username, updated);
+        boolean replaced = users.replace(username, existing, updated);
+        if (!replaced) {
+            // Если за время между get и replace значение изменилось, пробуем ещё раз (или кидаем исключение)
+            // Для простоты кидаем исключение, но можно организовать retry.
+            throw new IllegalStateException("User was modified concurrently, please retry");
+        }
     }
 
     @Override
