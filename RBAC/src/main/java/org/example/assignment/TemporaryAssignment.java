@@ -33,6 +33,11 @@ public class TemporaryAssignment extends AbstractRoleAssignment {
         return now.isBefore(expireDateTime);
     }
 
+    public synchronized void revoke() {
+        LocalDateTime past = LocalDateTime.now().minusSeconds(1);
+        this.expiresAt = past.format(FORMATTER);
+    }
+
     @Override
     public String assignmentType() {
         return "TEMPORARY";

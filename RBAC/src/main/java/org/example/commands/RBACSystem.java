@@ -7,6 +7,8 @@ import org.example.repository.RoleManager;
 import org.example.repository.AssignmentManager;
 import org.example.utils.AuditLog;
 
+import java.util.concurrent.TimeUnit;
+
 public class RBACSystem {
 
     private UserManager userManager;
@@ -135,5 +137,29 @@ public class RBACSystem {
         stats.append("Expired assignments: ").append(assignmentManager.getExpiredAssignments().size()).append("\n");
 
         return stats.toString();
+    }
+
+    public void startPeriodicTask(long intervalSeconds) {
+        backgroundExecutor.scheduleAtFixedRate(() -> {
+            try {
+                int expiredCount = assignmentManager.deactivateExpiredTemporaryAssignments();
+                if (expiredCount > 0) {
+                    auditLog.log("EXPIRATION_CHECK", "system", "AssignmentManager",
+                            "Deactivated " + expiredCount + " expired temporary assignments");
+                }
+
+                String statsReport = generateStatistics();
+                auditLog.log("STATS_REPORT", "system", "RBACSystem",
+                        "Periodic statistics report:\n" + statsReport);
+
+            } catch (Exception e) {
+                auditLog.log("ERROR", "system", "PeriodicTask",
+                        "Failed to execute periodic task: " + e.getMessage());
+            }
+        }, intervalSeconds, intervalSeconds, TimeUnit.SECONDS);
+    }
+
+    public void shutdown() {
+        backgroundExecutor.shutdown();
     }
 }

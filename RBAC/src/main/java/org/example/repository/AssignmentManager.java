@@ -192,4 +192,21 @@ public class AssignmentManager implements Repository<RoleAssignment> {
             throw new IllegalArgumentException("Only temporary assignments can be extended");
         }
     }
+
+    public int deactivateExpiredTemporaryAssignments() {
+        int deactivatedCount = 0;
+        for (RoleAssignment assignment : assignmentsById.values()) {
+            if (assignment instanceof TemporaryAssignment temp && temp.isActive()) {
+                if (temp.isExpired()) {
+                    synchronized (temp) {
+                        if (temp.isActive() && temp.isExpired()) {
+                            temp.revoke();
+                            deactivatedCount++;
+                        }
+                    }
+                }
+            }
+        }
+        return deactivatedCount;
+    }
 }
