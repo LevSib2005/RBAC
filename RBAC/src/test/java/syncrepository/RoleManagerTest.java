@@ -117,7 +117,6 @@ class RoleManagerTest {
         AtomicInteger successAdds = new AtomicInteger(0);
         List<Future<Void>> futures = new ArrayList<>();
 
-        // Writers
         for (int i = 0; i < writerThreads; i++) {
             final int idx = i;
             futures.add(executor.submit(() -> {
@@ -131,7 +130,6 @@ class RoleManagerTest {
             }));
         }
 
-        // Readers
         for (int i = 0; i < readerThreads; i++) {
             futures.add(executor.submit(() -> {
                 startLatch.await();
@@ -352,7 +350,7 @@ class RoleManagerTest {
                 for (int q = 0; q < 30; q++) {
                     Role r = roleManager.findByName("STRESS_ROLE").orElseThrow();
                     r.hasPermission("READ", "doc");
-                    r.getPermissions();             // безопасно, возвращает копию
+                    r.getPermissions();
                     roleManager.findRolesWithPermission("READ", "doc");
                 }
                 return null;

@@ -9,13 +9,15 @@ import org.example.entity.User;
 import org.example.filter.AssignmentFilter;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
 public class AssignmentManager implements Repository<RoleAssignment> {
 
-    private Map<String, RoleAssignment> assignmentsById = new HashMap<>();
-    private UserManager userManager;
-    private RoleManager roleManager;
+    private final ConcurrentMap<String, RoleAssignment> assignmentsById = new ConcurrentHashMap<>();
+    private final UserManager userManager;
+    private final RoleManager roleManager;
 
     public AssignmentManager(UserManager userManager, RoleManager roleManager) {
         this.userManager = userManager;
@@ -26,12 +28,6 @@ public class AssignmentManager implements Repository<RoleAssignment> {
     public void add(RoleAssignment assignment) {
         if (assignment == null) {
             throw new IllegalArgumentException("Assignment cannot be null");
-        }
-
-        String id = assignment.assignmentId();
-
-        if (assignmentsById.containsKey(id)) {
-            throw new IllegalArgumentException("Assignment with id '" + id + "' already exists");
         }
 
         User user = assignment.user();
@@ -45,18 +41,26 @@ public class AssignmentManager implements Repository<RoleAssignment> {
             throw new IllegalArgumentException("Role '" + role.getName() + "' does not exist");
         }
 
-        boolean alreadyAssigned = assignmentsById.values().stream()
-                .anyMatch(a -> a.user().equals(user) &&
-                        a.role().equals(role) &&
-                        a.isActive());
+        synchronized (this) {
+            String id = assignment.assignmentId();
 
-        if (alreadyAssigned) {
-            throw new IllegalArgumentException("User '" + user.username() +
-                    "' already has active assignment for role '" +
-                    role.getName() + "'");
+            if (assignmentsById.containsKey(id)) {
+                throw new IllegalArgumentException("Assignment with id '" + id + "' already exists");
+            }
+
+            boolean alreadyAssigned = assignmentsById.values().stream()
+                    .anyMatch(a -> a.user().equals(user) &&
+                            a.role().equals(role) &&
+                            a.isActive());
+
+            if (alreadyAssigned) {
+                throw new IllegalArgumentException("User '" + user.username() +
+                        "' already has active assignment for role '" +
+                        role.getName() + "'");
+            }
+
+            assignmentsById.put(id, assignment);
         }
-
-        assignmentsById.put(id, assignment);
     }
 
     @Override
@@ -64,7 +68,7 @@ public class AssignmentManager implements Repository<RoleAssignment> {
         if (assignment == null) {
             return false;
         }
-        return assignmentsById.remove(assignment.assignmentId()) != null;
+        return assignmentsById.remove(assignment.assignmentId(), assignment);
     }
 
     @Override
@@ -103,7 +107,6 @@ public class AssignmentManager implements Repository<RoleAssignment> {
         if (filter == null) {
             return findAll();
         }
-
         return assignmentsById.values().stream()
                 .filter(filter::test)
                 .collect(Collectors.toList());
@@ -111,11 +114,9 @@ public class AssignmentManager implements Repository<RoleAssignment> {
 
     public List<RoleAssignment> findAll(AssignmentFilter filter, Comparator<RoleAssignment> sorter) {
         List<RoleAssignment> result = findByFilter(filter);
-
         if (sorter != null) {
             result.sort(sorter);
         }
-
         return result;
     }
 
@@ -146,23 +147,21 @@ public class AssignmentManager implements Repository<RoleAssignment> {
 
     public Set<Permission> getUserPermissions(User user) {
         Set<Permission> allPermissions = new HashSet<>();
-
         assignmentsById.values().stream()
                 .filter(a -> a.user().equals(user) && a.isActive())
                 .forEach(a -> allPermissions.addAll(a.role().getPermissions()));
-
         return allPermissions;
     }
 
     public void revokeAssignment(String assignmentId) {
         RoleAssignment assignment = assignmentsById.get(assignmentId);
-
         if (assignment == null) {
             throw new IllegalArgumentException("Assignment with id '" + assignmentId + "' not found");
         }
-
         if (assignment instanceof PermanentAssignment perm) {
-            perm.revoke();
+            synchronized (perm) {
+                perm.revoke();
+            }
         } else {
             throw new IllegalArgumentException("Only permanent assignments can be revoked");
         }
@@ -170,13 +169,13 @@ public class AssignmentManager implements Repository<RoleAssignment> {
 
     public void extendTemporaryAssignment(String assignmentId, String newExpirationDate) {
         RoleAssignment assignment = assignmentsById.get(assignmentId);
-
         if (assignment == null) {
             throw new IllegalArgumentException("Assignment with id '" + assignmentId + "' not found");
         }
-
         if (assignment instanceof TemporaryAssignment temp) {
-            temp.extend(newExpirationDate);
+            synchronized (temp) {
+                temp.extend(newExpirationDate);
+            }
         } else {
             throw new IllegalArgumentException("Only temporary assignments can be extended");
         }

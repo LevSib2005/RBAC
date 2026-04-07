@@ -85,7 +85,6 @@ public class UserManager implements Repository<User> {
     }
 
     public void update(String username, String newFullName, String newEmail) {
-        // Атомарное обновление: replace(key, oldValue, newValue) или compute
         User existing = users.get(username);
         if (existing == null) {
             throw new IllegalArgumentException("User with username '" + username + "' not found");
@@ -93,8 +92,6 @@ public class UserManager implements Repository<User> {
         User updated = User.create(username, newFullName, newEmail);
         boolean replaced = users.replace(username, existing, updated);
         if (!replaced) {
-            // Если за время между get и replace значение изменилось, пробуем ещё раз (или кидаем исключение)
-            // Для простоты кидаем исключение, но можно организовать retry.
             throw new IllegalStateException("User was modified concurrently, please retry");
         }
     }

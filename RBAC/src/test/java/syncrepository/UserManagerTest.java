@@ -110,7 +110,6 @@ class UserManagerTest {
         }
         executor.shutdown();
         assertTrue(executor.awaitTermination(2, TimeUnit.SECONDS));
-        // После всех обновлений пользователь должен существовать, имя и email — какие-то из последних
         Optional<User> updated = userManager.findByUsername("alice");
         assertTrue(updated.isPresent());
         assertNotEquals("Alice Brown", updated.get().fullName());
@@ -119,7 +118,6 @@ class UserManagerTest {
     @Test
     void testConcurrentAddAndUpdate() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(10);
-        // Несколько потоков пытаются добавить одного и того же пользователя
         for (int i = 0; i < 5; i++) {
             executor.submit(() -> {
                 try {
@@ -127,7 +125,6 @@ class UserManagerTest {
                 } catch (IllegalArgumentException ignored) {}
             });
         }
-        // И обновить его
         for (int i = 0; i < 5; i++) {
             executor.submit(() -> {
                 try {
@@ -137,7 +134,6 @@ class UserManagerTest {
         }
         executor.shutdown();
         assertTrue(executor.awaitTermination(2, TimeUnit.SECONDS));
-        // В итоге должен быть один пользователь bob
         assertEquals(1, userManager.count());
         Optional<User> bob = userManager.findByUsername("bob");
         assertTrue(bob.isPresent());
@@ -145,7 +141,6 @@ class UserManagerTest {
 
     @Test
     void testFindByEmailConcurrent() throws Exception {
-        // Добавим пользователей
         for (int i = 0; i < 20; i++) {
             userManager.add(User.create("user" + i, "Name", "user" + i + "@test.com"));
         }
