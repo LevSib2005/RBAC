@@ -35,7 +35,6 @@ public class UserManager implements Repository<User> {
 
     @Override
     public Optional<User> findById(String id) {
-        // В User username используется как идентификатор
         return Optional.ofNullable(users.get(id));
     }
 

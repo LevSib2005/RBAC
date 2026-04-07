@@ -1,17 +1,18 @@
 package org.example.repository;
 
-
 import org.example.entity.Permission;
 import org.example.entity.Role;
 import org.example.filter.RoleFilter;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
 public class RoleManager implements Repository<Role> {
 
-    private Map<String, Role> rolesById = new HashMap<>();
-    private Map<String, Role> rolesByName = new HashMap<>();
+    private final ConcurrentMap<String, Role> rolesById = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Role> rolesByName = new ConcurrentHashMap<>();
 
     @Override
     public void add(Role role) {
@@ -22,25 +23,25 @@ public class RoleManager implements Repository<Role> {
         String id = role.getId();
         String name = role.getName();
 
-        if (rolesById.containsKey(id)) {
+        Role existingById = rolesById.putIfAbsent(id, role);
+        if (existingById != null) {
             throw new IllegalArgumentException("Role with id '" + id + "' already exists");
         }
 
-        if (rolesByName.containsKey(name)) {
+        Role existingByName = rolesByName.putIfAbsent(name, role);
+        if (existingByName != null) {
+            rolesById.remove(id, role);
             throw new IllegalArgumentException("Role with name '" + name + "' already exists");
         }
-
-        rolesById.put(id, role);
-        rolesByName.put(name, role);
     }
 
     @Override
     public boolean remove(Role item) {
         if (item == null) return false;
 
-        Role removed = rolesById.remove(item.getId());
-        if (removed != null) {
-            rolesByName.remove(removed.getName());
+        Role removed = rolesById.get(item.getId());
+        if (removed != null && rolesById.remove(item.getId(), removed)) {
+            rolesByName.remove(removed.getName(), removed);
             return true;
         }
         return false;
@@ -83,11 +84,9 @@ public class RoleManager implements Repository<Role> {
 
     public List<Role> findAll(RoleFilter filter, Comparator<Role> sorter) {
         List<Role> result = findByFilter(filter);
-
         if (sorter != null) {
             result.sort(sorter);
         }
-
         return result;
     }
 
@@ -97,22 +96,22 @@ public class RoleManager implements Repository<Role> {
 
     public void addPermissionToRole(String roleName, Permission permission) {
         Role role = rolesByName.get(roleName);
-
         if (role == null) {
             throw new IllegalArgumentException("Role with name '" + roleName + "' not found");
         }
-
-        role.addPermission(permission);
+        synchronized (role) {
+            role.addPermission(permission);
+        }
     }
 
     public void removePermissionFromRole(String roleName, Permission permission) {
         Role role = rolesByName.get(roleName);
-
         if (role == null) {
             throw new IllegalArgumentException("Role with name '" + roleName + "' not found");
         }
-
-        role.removePermission(permission);
+        synchronized (role) {
+            role.removePermission(permission);
+        }
     }
 
     public List<Role> findRolesWithPermission(String permissionName, String resource) {
