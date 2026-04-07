@@ -148,4 +148,108 @@ public class ReportGenerator {
             System.err.println("Error saving report: " + e.getMessage());
         }
     }
+
+    public String generateUserReportParallel(UserManager userManager, AssignmentManager assignmentManager) {
+        List<User> users = userManager.findAll();
+        if (users.isEmpty()) {
+            return "USER REPORT\n\nNo users found\n";
+        }
+
+        String userReports = users.parallelStream()
+                .map(user -> buildUserReportSection(user, assignmentManager))
+                .collect(Collectors.joining());
+
+        StringBuilder report = new StringBuilder();
+        report.append("USER REPORT\n\n");
+        report.append(userReports);
+        report.append("Total users: ").append(users.size()).append("\n");
+        return report.toString();
+    }
+
+    private String buildUserReportSection(User user, AssignmentManager assignmentManager) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("User: ").append(user.format()).append("\n");
+
+        List<RoleAssignment> active = assignmentManager.findByUser(user).stream()
+                .filter(RoleAssignment::isActive)
+                .collect(Collectors.toList());
+
+        sb.append("  Roles (").append(active.size()).append("):");
+        if (active.isEmpty()) {
+            sb.append(" none\n");
+        } else {
+            sb.append("\n");
+            for (RoleAssignment ra : active) {
+                sb.append("    - ").append(ra.role().getName())
+                        .append(" [").append(ra.assignmentType()).append("]\n");
+            }
+        }
+
+        Set<Permission> perms = assignmentManager.getUserPermissions(user);
+        sb.append("  Permissions (").append(perms.size()).append("):");
+        if (perms.isEmpty()) {
+            sb.append(" none\n");
+        } else {
+            sb.append("\n");
+            for (Permission p : perms) {
+                sb.append("    - ").append(p.format()).append("\n");
+            }
+        }
+        sb.append("\n");
+        return sb.toString();
+    }
+
+    public String generatePermissionMatrixParallel(UserManager userManager, AssignmentManager assignmentManager) {
+        List<User> users = userManager.findAll();
+        if (users.isEmpty()) {
+            return "PERMISSION MATRIX\n\nNo users found\n";
+        }
+
+        Set<String> allResources = users.parallelStream()
+                .flatMap(user -> assignmentManager.getUserPermissions(user).stream())
+                .map(Permission::resource)
+                .collect(Collectors.toCollection(TreeSet::new));
+
+        if (allResources.isEmpty()) {
+            return "PERMISSION MATRIX\n\nNo permissions assigned\n";
+        }
+
+        List<String> resourceList = new ArrayList<>(allResources);
+
+        StringBuilder header = new StringBuilder();
+        header.append("PERMISSION MATRIX\n\n");
+        header.append(String.format("%-15s", "User"));
+        for (String resource : resourceList) {
+            header.append(String.format(" | %-15s", resource));
+        }
+        header.append("\n");
+        header.append("-".repeat(15 + resourceList.size() * 18)).append("\n");
+
+        String rows = users.parallelStream()
+                .map(user -> buildPermissionMatrixRow(user, resourceList, assignmentManager))
+                .collect(Collectors.joining());
+
+        return header.toString() + rows;
+    }
+
+    private String buildPermissionMatrixRow(User user, List<String> resourceList, AssignmentManager assignmentManager) {
+        Set<Permission> perms = assignmentManager.getUserPermissions(user);
+        StringBuilder row = new StringBuilder();
+        row.append(String.format("%-15s", user.username()));
+
+        for (String resource : resourceList) {
+            String permNames = perms.stream()
+                    .filter(p -> p.resource().equals(resource))
+                    .map(Permission::name)
+                    .sorted()
+                    .collect(Collectors.joining(","));
+            if (permNames.isEmpty()) {
+                row.append(String.format(" | %-15s", "-"));
+            } else {
+                row.append(String.format(" | %-15s", permNames));
+            }
+        }
+        row.append("\n");
+        return row.toString();
+    }
 }

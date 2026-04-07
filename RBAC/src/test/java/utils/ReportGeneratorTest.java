@@ -17,7 +17,7 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class ReportGeneratorTest {
+public class ReportGeneratorTest {
 
     private ReportGenerator reportGenerator;
     private UserManager userManager;
@@ -291,5 +291,124 @@ class ReportGeneratorTest {
         assertTrue(report.contains("Role1"));
         assertTrue(report.contains("Role2"));
         assertTrue(report.contains("Roles (2):"));
+    }
+
+    @Test
+    void generateUserReportParallelMatchesSequential() {
+        setupTestData();
+
+        String sequentialReport = reportGenerator.generateUserReport(userManager, assignmentManager);
+        String parallelReport = reportGenerator.generateUserReportParallel(userManager, assignmentManager);
+
+        assertEquals(sequentialReport, parallelReport,
+                "Параллельный отчёт по пользователям должен совпадать с последовательным");
+    }
+
+    @Test
+    void generateUserReportParallelWithEmptyUsers() {
+        String report = reportGenerator.generateUserReportParallel(userManager, assignmentManager);
+        assertTrue(report.contains("No users found"));
+        assertTrue(report.startsWith("USER REPORT"));
+    }
+
+    @Test
+    void generateUserReportParallelWithSingleUser() {
+        User user = User.create("onlyuser", "Only User", "only@example.com");
+        userManager.add(user);
+
+        String report = reportGenerator.generateUserReportParallel(userManager, assignmentManager);
+        assertTrue(report.contains("onlyuser"));
+        assertTrue(report.contains("Roles (0): none"));
+        assertTrue(report.contains("Total users: 1"));
+    }
+
+    @Test
+    void generatePermissionMatrixParallelMatchesSequential() {
+        setupTestData();
+
+        String sequentialMatrix = reportGenerator.generatePermissionMatrix(userManager, assignmentManager);
+        String parallelMatrix = reportGenerator.generatePermissionMatrixParallel(userManager, assignmentManager);
+
+        assertEquals(sequentialMatrix, parallelMatrix,
+                "Параллельная матрица прав должна совпадать с последовательной");
+    }
+
+    @Test
+    void generatePermissionMatrixParallelWithEmptyUsers() {
+        String report = reportGenerator.generatePermissionMatrixParallel(userManager, assignmentManager);
+        assertTrue(report.contains("No users found"));
+        assertTrue(report.contains("PERMISSION MATRIX"));
+    }
+
+    @Test
+    void generatePermissionMatrixParallelWithNoPermissions() {
+        User user = User.create("noperms", "No Permissions", "no@example.com");
+        userManager.add(user);
+
+        String report = reportGenerator.generatePermissionMatrixParallel(userManager, assignmentManager);
+        assertTrue(report.contains("No permissions assigned"));
+    }
+
+    @Test
+    void generatePermissionMatrixParallelWithManyUsers() {
+        int userCount = 100;
+        Role role = new Role("BasicRole", "Basic permissions");
+        Permission readPerm = new Permission("READ", "common", "Read common");
+        role.addPermission(readPerm);
+        roleManager.add(role);
+
+        for (int i = 0; i < userCount; i++) {
+            User u = User.create("user" + i, "User " + i, "user" + i + "@test.com");
+            userManager.add(u);
+            AssignmentMetadata meta = AssignmentMetadata.now("system", "bulk");
+            assignmentManager.add(new PermanentAssignment(u, role, meta));
+        }
+
+        String report = reportGenerator.generatePermissionMatrixParallel(userManager, assignmentManager);
+        assertTrue(report.contains("PERMISSION MATRIX"));
+        assertTrue(report.contains("common"));
+        for (int i = 0; i < userCount; i++) {
+            assertTrue(report.contains("user" + i), "Пользователь user" + i + " должен быть в матрице");
+        }
+        assertTrue(report.contains("READ"));
+    }
+
+    @Test
+    void generateUserReportParallelWithManyUsers() {
+        int userCount = 100;
+        Role role = new Role("ViewAll", "Can view everything");
+        Permission viewPerm = new Permission("VIEW", "all", "View all");
+        role.addPermission(viewPerm);
+        roleManager.add(role);
+
+        for (int i = 0; i < userCount; i++) {
+            User u = User.create("bulkuser" + i, "Bulk User " + i, "bulk" + i + "@test.com");
+            userManager.add(u);
+            AssignmentMetadata meta = AssignmentMetadata.now("system", "bulk");
+            assignmentManager.add(new PermanentAssignment(u, role, meta));
+        }
+
+        String report = reportGenerator.generateUserReportParallel(userManager, assignmentManager);
+        assertTrue(report.contains("Total users: " + userCount));
+        assertTrue(report.contains("ViewAll"));
+        for (int i = 0; i < userCount; i++) {
+            assertTrue(report.contains("bulkuser" + i));
+        }
+    }
+
+    @Test
+    void generateUserReportParallelDoesNotThrowConcurrentModification() {
+        setupTestData();
+        for (int i = 0; i < 10; i++) {
+            assertDoesNotThrow(() -> reportGenerator.generateUserReportParallel(userManager, assignmentManager));
+        }
+    }
+
+    @Test
+    void generatePermissionMatrixParallelDoesNotThrowConcurrentModification() {
+        setupTestData();
+        for (int i = 0; i < 10; i++) {
+            assertDoesNotThrow(() -> reportGenerator.generatePermissionMatrixParallel(userManager, assignmentManager));
+        }
     }
 }
