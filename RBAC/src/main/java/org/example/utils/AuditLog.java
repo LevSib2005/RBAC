@@ -65,4 +65,9 @@ public class AuditLog {
             System.err.println("Ошибка при сохранении лога: " + e.getMessage());
         }
     }
+
+    public void clear() {
+        entries.clear();
+        log("CLEAR", "system", "audit-log", "Audit log was cleared");
+    }
 }

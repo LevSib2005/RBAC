@@ -5,6 +5,7 @@ import org.example.entity.*;
 import org.example.repository.UserManager;
 import org.example.repository.RoleManager;
 import org.example.repository.AssignmentManager;
+import org.example.utils.AuditLog;
 
 public class RBACSystem {
 
@@ -12,12 +13,16 @@ public class RBACSystem {
     private RoleManager roleManager;
     private AssignmentManager assignmentManager;
     private String currentUser;
+    private BackgroundExecutor backgroundExecutor;
+    private AuditLog auditLog;
 
     public RBACSystem() {
         this.userManager = new UserManager();
         this.roleManager = new RoleManager();
         this.assignmentManager = new AssignmentManager(userManager, roleManager);
         this.currentUser = "system";
+        this.backgroundExecutor = BackgroundExecutor.getInstance();
+        this.auditLog = new AuditLog();
     }
 
     public UserManager getUserManager() {
@@ -38,6 +43,14 @@ public class RBACSystem {
 
     public String getCurrentUser() {
         return currentUser;
+    }
+
+    public BackgroundExecutor getBackgroundExecutor() {
+        return backgroundExecutor;
+    }
+
+    public AuditLog getAuditLog() {
+        return auditLog;
     }
 
     public void initialize() {
@@ -105,6 +118,8 @@ public class RBACSystem {
         assignmentManager.add(assign1);
         assignmentManager.add(assign2);
         assignmentManager.add(assign3);
+
+        auditLog.log("INIT", "system", "RBACSystem", "System initialized with default data");
     }
 
     public String generateStatistics() {

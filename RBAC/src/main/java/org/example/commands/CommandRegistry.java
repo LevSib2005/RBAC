@@ -736,5 +736,61 @@ public class CommandRegistry {
 
         parser.registerCommand("load", "Load data from file (not implemented)", (scanner, system) ->
                 out("Load feature is not implemented."));
+
+        parser.registerCommand("report-users-async", "Generate user report in background", (scanner, system) -> {
+            system.getAuditLog().log("COMMAND", system.getCurrentUser(), "report-users-async",
+                    "Started async user report generation");
+            system.getBackgroundExecutor().submit(() -> {
+                try {
+                    org.example.utils.ReportGenerator gen = new org.example.utils.ReportGenerator();
+                    String report = gen.generateUserReport(system.getUserManager(), system.getAssignmentManager());
+                    String filename = "user_report_" + System.currentTimeMillis() + ".txt";
+                    gen.exportToFile(report, filename);
+                    System.out.println("[Background] User report saved to " + filename);
+                    system.getAuditLog().log("ASYNC_TASK", "system", "report-users-async",
+                            "User report saved to " + filename);
+                } catch (Exception e) {
+                    System.err.println("[Background] Failed to generate user report: " + e.getMessage());
+                    system.getAuditLog().log("ASYNC_ERROR", "system", "report-users-async",
+                            "Failed: " + e.getMessage());
+                }
+            });
+            out("User report generation started in background.");
+        });
+
+        parser.registerCommand("save-async", "Save audit log to file in background", (scanner, system) -> {
+            system.getAuditLog().log("COMMAND", system.getCurrentUser(), "save-async",
+                    "Started async audit log save");
+            system.getBackgroundExecutor().submit(() -> {
+                try {
+                    String filename = "audit_log_" + System.currentTimeMillis() + ".txt";
+                    system.getAuditLog().saveToFile(filename);
+                    System.out.println("[Background] Audit log saved to " + filename);
+                    system.getAuditLog().log("ASYNC_TASK", "system", "save-async",
+                            "Audit log saved to " + filename);
+                } catch (Exception e) {
+                    System.err.println("[Background] Failed to save audit log: " + e.getMessage());
+                    system.getAuditLog().log("ASYNC_ERROR", "system", "save-async",
+                            "Failed: " + e.getMessage());
+                }
+            });
+            out("Audit log saving started in background.");
+        });
+
+        parser.registerCommand("audit-print", "Print audit log", (scanner, system) -> {
+            system.getAuditLog().printLog();
+        });
+
+        parser.registerCommand("audit-save", "Save audit log to file (sync)", (scanner, system) -> {
+            String filename = ask(scanner, "Enter filename: ");
+            system.getAuditLog().saveToFile(filename);
+        });
+
+        parser.registerCommand("audit-clear", "Clear audit log", (scanner, system) -> {
+            if (confirm(scanner, "Clear all audit log entries?")) {
+                system.getAuditLog().clear();
+                out("Audit log cleared.");
+            }
+        });
     }
 }
